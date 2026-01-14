@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI探究导师 - 酵母菌呼吸作用实验</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部标题 -->
+    <header class="header">
+      <h1>🔬 AI探究导师 - 酵母菌呼吸作用实验</h1>
+    </header>
+
+    <!-- 主体区域 -->
+    <main class="main-container">
+      <!-- 左侧区域 -->
+      <div class="left-panel">
+        <!-- 实验台 -->
+        <section class="experiment-bench" id="experimentBench">
+          <h2>🧪 实验台</h2>
+          <div class="bench-content" id="benchContent">
+            <div class="empty-hint">实验台为空，请按照AI指引开始实验</div>
+          </div>
+        </section>
+
+        <!-- 材料区 -->
+        <section class="materials-area" id="materialsArea">
+          <h2>📦 材料区</h2>
+          <div class="materials-container" id="materialsContainer">
+            <!-- 材料将通过JS动态生成 -->
+          </div>
+        </section>
+      </div>
+
+      <!-- 右侧区域 -->
+      <div class="right-panel">
+        <!-- 数据区 -->
+        <section class="data-area" id="dataArea">
+          <h2>📊 数据区</h2>
+          <table class="data-table" id="dataTable">
+            <thead>
+              <tr>
+                <th></th>
+                <th>装置1</th>
+                <th>装置2</th>
+                <th>装置3</th>
+                <th>装置4</th>
+                <th>装置5</th>
+              </tr>
+            </thead>
+          <tbody id="dataTableBody">
+            <!-- 数据行将动态生成 -->
+          </tbody>
+          </table>
+        </section>
+
+        <!-- 参数区 -->
+        <section class="parameters-area" id="parametersArea">
+          <h2>🎛️ 参数区</h2>
+          <div class="parameters-container" id="parametersContainer">
+            <div class="empty-hint">等待AI引导设置参数</div>
+          </div>
+        </section>
+
+        <!-- 控制区 -->
+        <section class="control-area" id="controlArea">
+          <h2>🎮 控制区</h2>
+          <div class="control-buttons">
+            <button id="btnStart" class="btn btn-start" disabled>▶️ 开始</button>
+            <button id="btnPause" class="btn btn-pause" disabled>⏸️ 暂停</button>
+            <button id="btnReset" class="btn btn-reset" disabled>🔄 重置</button>
+          </div>
+          <div class="timer" id="timer">
+            <span class="timer-label">模拟时间：</span>
+            <span class="timer-value" id="timerValue">0小时</span>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- AI对话区 -->
+    <aside class="chat-panel" id="chatPanel">
+      <div class="chat-header">
+        <h2>🤖 AI探究导师</h2>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <!-- 对话消息将动态生成 -->
+      </div>
+      <div class="chat-input-area">
+        <input type="text" id="chatInput" class="chat-input" placeholder="输入你的回答..." disabled>
+        <button id="btnSend" class="btn btn-send" disabled>发送</button>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
