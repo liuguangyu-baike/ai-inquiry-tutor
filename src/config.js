@@ -9,8 +9,8 @@ export const config = {
 
   // 实验参数
   experiment: {
-    // 时间设置：真实2秒 = 模拟1小时
-    realSecondsPerHour: 2,
+    // 时间设置：真实1秒 = 模拟1小时
+    realSecondsPerHour: 1,
     totalHours: 8,
     
     // 温度范围
@@ -25,15 +25,13 @@ export const config = {
       yeast: { amount: 3, unit: 'g' },
     },
     
-    // 气体体积计算公式参数
+    // 气体体积计算公式参数（更新：取消50度分界点）
     gasFormula: {
-      // 25-50°C: 0.2ml/°C * temp * hours
+      // 25℃≤温度时: 0.2ml/℃ * temp * hours
       normalRate: 0.2,
       normalMinTemp: 25,
-      normalMaxTemp: 50,
       // <25°C: 0.02ml/°C * temp * hours
       lowTempRate: 0.02,
-      // >50°C: 0 (酵母菌失活)
     },
   },
 
@@ -44,16 +42,13 @@ export const config = {
   },
 };
 
-// 气体体积计算函数
+// 气体体积计算函数（更新：取消50度分界点）
 export function calculateGasVolume(temperature, hours) {
   const { gasFormula } = config.experiment;
   
-  if (temperature >= gasFormula.normalMinTemp && temperature <= gasFormula.normalMaxTemp) {
-    // 25-50°C: 正常发酵
+  if (temperature >= gasFormula.normalMinTemp) {
+    // 25℃≤温度时: 正常发酵
     return gasFormula.normalRate * temperature * hours;
-  } else if (temperature > gasFormula.normalMaxTemp) {
-    // >50°C: 酵母菌失活
-    return 0;
   } else {
     // <25°C: 低温抑制
     return gasFormula.lowTempRate * temperature * hours;

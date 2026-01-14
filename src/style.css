@@ -234,6 +234,146 @@ section h2 {
   border-radius: var(--radius-sm);
 }
 
+.apparatus-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* 放置区样式 */
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border: 3px dashed var(--border-color);
+  border-radius: var(--radius);
+  background: rgba(37, 99, 235, 0.05);
+  transition: all 0.3s ease;
+  margin: 20px;
+}
+
+.drop-zone.mini {
+  min-height: 80px;
+  margin: 10px;
+  padding: 15px;
+}
+
+/* 覆盖在量筒上的放置区 */
+.drop-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.2);
+  border: 2px dashed var(--primary-color);
+  border-radius: 0 0 8px 8px;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.drop-overlay.active {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: var(--secondary-color);
+  transform: scale(1.05);
+}
+
+.drop-hint-text {
+  font-size: 0.65rem;
+  color: white;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.drop-zone.active {
+  border-color: var(--secondary-color);
+  background: rgba(16, 185, 129, 0.1);
+  transform: scale(1.02);
+}
+
+.drop-zone-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.drop-icon {
+  font-size: 2.5rem;
+}
+
+.drop-text {
+  font-size: 0.9rem;
+}
+
+/* 组装容器 */
+.assembly-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  width: 100%;
+}
+
+/* 组装中的装置 */
+.apparatus.assembling {
+  transform: scale(1.2);
+  margin-bottom: 20px;
+}
+
+/* 气球小号（未充气） */
+.apparatus-balloon.small {
+  width: 40px;
+  height: 30px;
+  transform: scale(0.8);
+}
+
+/* 有皮筋的状态 */
+.apparatus-balloon.has-rubber-band::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 4px;
+  background: #654321;
+  border-radius: 2px;
+}
+
+/* 量筒液体状态 */
+.cylinder-liquid.has-water {
+  background: linear-gradient(180deg, rgba(135, 206, 235, 0.6) 0%, rgba(100, 149, 237, 0.8) 100%);
+}
+
+.cylinder-liquid.has-yeast {
+  background: linear-gradient(180deg, rgba(210, 180, 140, 0.7) 0%, rgba(188, 143, 143, 0.8) 100%);
+}
+
+.cylinder-liquid.has-sugar {
+  background: linear-gradient(180deg, rgba(255, 250, 205, 0.7) 0%, rgba(238, 232, 170, 0.8) 100%);
+}
+
+.cylinder-liquid.stirred {
+  background: linear-gradient(180deg, #f4e4bc 0%, #e8d5a3 100%);
+  animation: stir 0.5s ease;
+}
+
+@keyframes stir {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
 /* 材料区 */
 .materials-area {
   flex: 1;
@@ -259,6 +399,7 @@ section h2 {
   transition: all 0.2s;
   min-width: 80px;
   border: 2px solid transparent;
+  position: relative;
 }
 
 .material-item:hover {
@@ -269,6 +410,52 @@ section h2 {
 .material-item.selected {
   border-color: var(--secondary-color);
   background: rgba(16, 185, 129, 0.1);
+}
+
+/* 拖拽相关样式 */
+.material-item.draggable {
+  cursor: grab;
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.material-item.draggable:active {
+  cursor: grabbing;
+}
+
+.material-item.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+}
+
+.material-item.expected {
+  animation: pulse-highlight 1s ease infinite;
+  border-color: var(--warning-color);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+}
+
+.material-item.used {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--border-color);
+}
+
+.material-item.used::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.75rem;
+  color: var(--secondary-color);
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+  }
 }
 
 .material-icon {

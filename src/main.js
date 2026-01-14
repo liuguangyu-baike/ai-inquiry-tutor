@@ -3,7 +3,7 @@
 import './style.css';
 import { config } from './config.js';
 import { MaterialsManager, MATERIALS } from './materials.js';
-import { Simulator, ExperimentStatus } from './simulator.js';
+import { Simulator, ExperimentStatus, ASSEMBLY_STEPS } from './simulator.js';
 import { AIChatManager } from './ai-chat.js';
 
 // 场景图片（使用placeholder，可以替换为真实图片）
@@ -57,8 +57,8 @@ class App {
   init() {
     console.log('🔬 AI探究导师已启动');
     
-    // 初始材料区显示所有实验材料
-    this.materials.showMaterials(['yeast', 'water', 'sugar', 'cylinder', 'balloon', 'rubberBand']);
+    // 初始材料区为空（AI引导后再显示）
+    this.materials.clear();
     
     // 初始数据区表格为空
     this.updateDataTableDisplay({ showTemp: false, showVolume: false });
@@ -147,21 +147,66 @@ class App {
       console.log('材料点击:', id);
     };
     
+    // 材料放置回调
+    this.simulator.onMaterialDropped = (result) => {
+      this.handleMaterialDropResult(result);
+    };
+    
     // 绑定数据输入验证
     this.bindVolumeInputValidation();
   }
   
+  // 处理材料放置结果
+  handleMaterialDropResult(result) {
+    console.log('材料放置结果:', result);
+    
+    if (result.success) {
+      // 标记材料为已使用
+      this.materials.markAsUsed(result.material);
+      
+      if (result.isComplete) {
+        // 第一组装置组装完成
+        this.aiChat.addAIMessage('很好！你已经完成了第一组材料的组装 🎉');
+        // 自动进入下一步
+        setTimeout(() => {
+          this.aiChat.getAIResponse();
+        }, 1000);
+      } else if (result.nextMaterial) {
+        // 提示下一个材料
+        this.materials.setExpectedMaterial(result.nextMaterial);
+        const nextStep = ASSEMBLY_STEPS.find(s => s.material === result.nextMaterial);
+        if (nextStep) {
+          this.aiChat.addAIMessage(`好的！接下来，${nextStep.description}`);
+        }
+      }
+    } else {
+      // 放置错误，提示用户
+      this.aiChat.addAIMessage(result.message);
+    }
+  }
+  
   // 处理用户消息，在特定关键词时注入实际数据
+  // 返回 { block: true, message: '...' } 来拦截消息并显示提示
   handleUserMessage(message) {
     const lowerMsg = message.toLowerCase();
     
-    // 用户说"设置好了"时，注入温度数据
+    // 用户说"设置好了"时，验证并注入温度数据
     if (lowerMsg.includes('设置好') || lowerMsg.includes('设好了') || lowerMsg.includes('好了')) {
       const temps = this.simulator.getTemperatures();
       // 检查是否在设置温度阶段（温度滑块已显示）
       if (this.simulator.temperatureSlidersEnabled) {
-        // 注入系统消息告诉AI当前温度
-        const tempInfo = `[系统信息：用户设置的5个温度值分别为：${temps.join('°C, ')}°C]`;
+        // 🔒 验证温度：必须至少有2个不同的值
+        const uniqueTemps = new Set(temps);
+        if (uniqueTemps.size < 2) {
+          // 温度验证失败，拦截消息并提示用户
+          return {
+            block: true,
+            message: '如果5组温度都一样，我们就无法比较不同温度的效果了。请设置至少2个不同的温度值，再告诉我"设置好了"。'
+          };
+        }
+        
+        // 验证通过，注入系统消息告诉AI当前温度
+        const tempInfo = `[系统信息：用户设置的5个温度值分别为：${temps.join('°C, ')}°C，温度验证通过]`;
         this.aiChat.messages.push({ role: 'system', content: tempInfo });
         console.log('注入温度数据:', temps);
       }
@@ -274,9 +319,57 @@ class App {
         this.showFlowChart();
         break;
         
+      case 'showMaterialsForExperiment':
+        // 显示实验材料（包含搅拌棒）
+        this.materials.showMaterials(['cylinder', 'water', 'yeast', 'sugar', 'stirringRod', 'balloon', 'rubberBand']);
+        break;
+        
+      case 'startAssembly':
+        // 启动组装模式
+        this.startAssemblyMode();
+        break;
+        
+      case 'waitForMaterial':
+        // 等待用户拖动指定材料
+        this.waitForMaterial(cmd.material);
+        break;
+        
+      case 'assembleRemaining':
+        // 自动组装剩余装置
+        this.assembleRemainingApparatuses();
+        break;
+        
       default:
         console.warn('未知指令:', cmd.action);
     }
+  }
+  
+  // 启动组装模式
+  startAssemblyMode() {
+    console.log('启动组装模式');
+    // 启用材料区拖拽
+    this.materials.enableDrag(true);
+    // 启动模拟器组装模式
+    this.simulator.startAssemblyMode();
+    // 高亮第一个材料（量筒）
+    this.materials.setExpectedMaterial('cylinder');
+  }
+  
+  // 等待用户拖动指定材料
+  waitForMaterial(materialId) {
+    console.log('等待材料:', materialId);
+    // 高亮期望的材料
+    this.materials.setExpectedMaterial(materialId);
+  }
+  
+  // 自动组装剩余装置
+  assembleRemainingApparatuses() {
+    console.log('自动组装剩余装置');
+    // 禁用拖拽
+    this.materials.enableDrag(false);
+    this.materials.setExpectedMaterial(null);
+    // 自动组装
+    this.simulator.assembleRemainingApparatuses();
   }
 
   // 绑定数据输入验证

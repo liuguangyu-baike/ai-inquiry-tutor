@@ -10,14 +10,27 @@ export const ExperimentStatus = {
   COMPLETED: 'completed', // 已完成
 };
 
+// 组装步骤顺序
+export const ASSEMBLY_STEPS = [
+  { material: 'cylinder', name: '量筒', description: '拖动量筒到实验台' },
+  { material: 'water', name: '水', description: '往量筒中添加10ml水' },
+  { material: 'yeast', name: '酵母菌', description: '加入3g酵母菌' },
+  { material: 'sugar', name: '白砂糖', description: '加入5g白砂糖' },
+  { material: 'stirringRod', name: '搅拌棒', description: '用搅拌棒搅拌均匀' },
+  { material: 'balloon', name: '气球', description: '在量筒上套上气球' },
+  { material: 'rubberBand', name: '皮筋', description: '用皮筋系紧' },
+];
+
 // 实验装置类
 class Apparatus {
   constructor(index) {
     this.index = index;
     this.temperature = config.experiment.temperatureDefault;
+    this.hasCylinder = false;  // 新增：是否有量筒
     this.hasWater = false;
     this.hasSugar = false;
     this.hasYeast = false;
+    this.hasStirred = false;   // 新增：是否已搅拌
     this.hasBalloon = false;
     this.hasRubberBand = false;
     this.gasVolume = 0;
@@ -26,7 +39,39 @@ class Apparatus {
 
   // 检查装置是否组装完成
   isAssembled() {
-    return this.hasWater && this.hasSugar && this.hasYeast && this.hasBalloon && this.hasRubberBand;
+    return this.hasCylinder && this.hasWater && this.hasSugar && this.hasYeast && 
+           this.hasStirred && this.hasBalloon && this.hasRubberBand;
+  }
+  
+  // 检查装置是否部分组装（至少有量筒）
+  isPartiallyAssembled() {
+    return this.hasCylinder;
+  }
+  
+  // 获取当前组装进度（0-7）
+  getAssemblyProgress() {
+    let progress = 0;
+    if (this.hasCylinder) progress++;
+    if (this.hasWater) progress++;
+    if (this.hasYeast) progress++;
+    if (this.hasSugar) progress++;
+    if (this.hasStirred) progress++;
+    if (this.hasBalloon) progress++;
+    if (this.hasRubberBand) progress++;
+    return progress;
+  }
+  
+  // 添加材料
+  addMaterial(materialId) {
+    switch (materialId) {
+      case 'cylinder': this.hasCylinder = true; break;
+      case 'water': this.hasWater = true; break;
+      case 'yeast': this.hasYeast = true; break;
+      case 'sugar': this.hasSugar = true; break;
+      case 'stirringRod': this.hasStirred = true; break;
+      case 'balloon': this.hasBalloon = true; break;
+      case 'rubberBand': this.hasRubberBand = true; break;
+    }
   }
 
   // 更新气体体积
@@ -60,6 +105,12 @@ export class Simulator {
     this.currentHours = 0;
     this.timerInterval = null;
     this.temperatureSlidersEnabled = false;
+    
+    // 组装状态
+    this.assemblyMode = false;           // 是否处于组装模式
+    this.currentAssemblyIndex = 0;       // 当前正在组装的装置索引
+    this.currentAssemblyStep = 0;        // 当前组装步骤
+    this.expectedMaterial = null;        // 期望的下一个材料
 
     // 事件回调
     this.onTemperatureChange = null;
@@ -67,6 +118,7 @@ export class Simulator {
     this.onExperimentTick = null;
     this.onExperimentComplete = null;
     this.onControlButtonClick = null;
+    this.onMaterialDropped = null;       // 材料放置回调
 
     // 初始化装置
     for (let i = 0; i < config.ui.apparatusCount; i++) {
@@ -100,6 +152,233 @@ export class Simulator {
   }
 
   // ==================== 公开API ====================
+
+  // ==================== 组装相关API ====================
+  
+  // 启用组装模式
+  startAssemblyMode() {
+    this.assemblyMode = true;
+    this.currentAssemblyIndex = 0;
+    this.currentAssemblyStep = 0;
+    this.expectedMaterial = ASSEMBLY_STEPS[0].material;
+    
+    // 显示放置区
+    this.showDropZone();
+  }
+  
+  // 显示放置区
+  showDropZone() {
+    this.benchContent.innerHTML = '';
+    
+    const dropZone = document.createElement('div');
+    dropZone.className = 'drop-zone';
+    dropZone.id = 'dropZone';
+    dropZone.innerHTML = `
+      <div class="drop-zone-hint">
+        <span class="drop-icon">📥</span>
+        <span class="drop-text">将材料拖放到这里</span>
+      </div>
+    `;
+    
+    // 拖放事件
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      dropZone.classList.add('active');
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('active');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('active');
+      const materialId = e.dataTransfer.getData('text/plain');
+      this.handleMaterialDrop(materialId);
+    });
+    
+    this.benchContent.appendChild(dropZone);
+  }
+  
+  // 处理材料放置
+  handleMaterialDrop(materialId) {
+    if (!this.assemblyMode) return { success: false, message: '当前不在组装模式' };
+    
+    const apparatus = this.apparatuses[this.currentAssemblyIndex];
+    const expectedStep = ASSEMBLY_STEPS[this.currentAssemblyStep];
+    
+    // 检查是否是期望的材料
+    if (materialId !== expectedStep.material) {
+      const result = { 
+        success: false, 
+        message: `现在需要添加${expectedStep.name}，请拖动正确的材料`,
+        expected: expectedStep.material,
+        received: materialId
+      };
+      if (this.onMaterialDropped) {
+        this.onMaterialDropped(result);
+      }
+      return result;
+    }
+    
+    // 添加材料到装置
+    apparatus.addMaterial(materialId);
+    this.currentAssemblyStep++;
+    
+    // 更新期望的下一个材料
+    if (this.currentAssemblyStep < ASSEMBLY_STEPS.length) {
+      this.expectedMaterial = ASSEMBLY_STEPS[this.currentAssemblyStep].material;
+    } else {
+      this.expectedMaterial = null;
+    }
+    
+    // 渲染当前组装进度
+    this.renderAssemblingApparatus();
+    
+    const result = {
+      success: true,
+      material: materialId,
+      step: this.currentAssemblyStep,
+      isComplete: apparatus.isAssembled(),
+      nextMaterial: this.expectedMaterial
+    };
+    
+    if (this.onMaterialDropped) {
+      this.onMaterialDropped(result);
+    }
+    
+    return result;
+  }
+  
+  // 渲染正在组装的装置
+  renderAssemblingApparatus() {
+    const apparatus = this.apparatuses[this.currentAssemblyIndex];
+    
+    this.benchContent.innerHTML = '';
+    
+    // 创建装置容器
+    const container = document.createElement('div');
+    container.className = 'assembly-container';
+    
+    // 创建装置
+    const div = document.createElement('div');
+    div.className = 'apparatus assembling';
+    div.id = `apparatus-${this.currentAssemblyIndex}`;
+    
+    // 根据组装进度渲染不同状态
+    let cylinderContent = '';
+    let balloonHtml = '';
+    
+    if (apparatus.hasCylinder) {
+      // 量筒内容
+      let liquidClass = 'cylinder-liquid';
+      if (apparatus.hasWater) liquidClass += ' has-water';
+      if (apparatus.hasYeast) liquidClass += ' has-yeast';
+      if (apparatus.hasSugar) liquidClass += ' has-sugar';
+      if (apparatus.hasStirred) liquidClass += ' stirred';
+      
+      cylinderContent = `
+        <div class="apparatus-cylinder">
+          <div class="${liquidClass}"></div>
+        </div>
+      `;
+      
+      // 气球（如果有）
+      if (apparatus.hasBalloon) {
+        const rubberBandClass = apparatus.hasRubberBand ? 'has-rubber-band' : '';
+        balloonHtml = `<div class="apparatus-balloon small ${rubberBandClass}"></div>`;
+      }
+    }
+    
+    div.innerHTML = `
+      ${balloonHtml}
+      ${cylinderContent}
+      <div class="apparatus-label">第${this.currentAssemblyIndex + 1}组</div>
+    `;
+    
+    container.appendChild(div);
+    
+    // 如果还没组装完，在量筒上添加放置区
+    if (!apparatus.isAssembled()) {
+      const nextStep = ASSEMBLY_STEPS[this.currentAssemblyStep];
+      
+      // 创建覆盖在量筒上的放置区
+      const dropOverlay = document.createElement('div');
+      dropOverlay.className = 'drop-overlay';
+      dropOverlay.id = 'dropZone';
+      dropOverlay.innerHTML = `<span class="drop-hint-text">${nextStep ? `拖入${nextStep.name}` : ''}</span>`;
+      
+      // 拖放事件
+      dropOverlay.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        dropOverlay.classList.add('active');
+      });
+      
+      dropOverlay.addEventListener('dragleave', () => {
+        dropOverlay.classList.remove('active');
+      });
+      
+      dropOverlay.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropOverlay.classList.remove('active');
+        const materialId = e.dataTransfer.getData('text/plain');
+        this.handleMaterialDrop(materialId);
+      });
+      
+      // 找到量筒元素并添加覆盖层
+      const cylinderEl = div.querySelector('.apparatus-cylinder');
+      if (cylinderEl) {
+        cylinderEl.style.position = 'relative';
+        cylinderEl.appendChild(dropOverlay);
+      } else {
+        // 如果还没有量筒，显示初始放置区
+        container.appendChild(dropOverlay);
+      }
+    }
+    
+    this.benchContent.appendChild(container);
+  }
+  
+  // 获取当前期望的材料
+  getExpectedMaterial() {
+    return this.expectedMaterial;
+  }
+  
+  // 获取当前组装步骤信息
+  getCurrentAssemblyStep() {
+    if (this.currentAssemblyStep >= ASSEMBLY_STEPS.length) {
+      return null;
+    }
+    return ASSEMBLY_STEPS[this.currentAssemblyStep];
+  }
+  
+  // 结束组装模式
+  endAssemblyMode() {
+    this.assemblyMode = false;
+    this.expectedMaterial = null;
+  }
+  
+  // 自动组装剩余装置
+  assembleRemainingApparatuses() {
+    // 从第2个装置开始（索引1），自动组装
+    for (let i = 1; i < config.ui.apparatusCount; i++) {
+      const apparatus = this.apparatuses[i];
+      apparatus.hasCylinder = true;
+      apparatus.hasWater = true;
+      apparatus.hasYeast = true;
+      apparatus.hasSugar = true;
+      apparatus.hasStirred = true;
+      apparatus.hasBalloon = true;
+      apparatus.hasRubberBand = true;
+    }
+    
+    this.endAssemblyMode();
+    this.renderApparatuses();
+  }
+
+  // ==================== 温度相关API ====================
 
   // 显示温度滑块
   showTemperatureSliders() {
@@ -173,14 +452,16 @@ export class Simulator {
     return this.apparatuses.map(a => a.temperature);
   }
 
-  // 组装装置
-  assembleApparatus(index, components = { water: true, sugar: true, yeast: true, balloon: true, rubberBand: true }) {
+  // 组装装置（完整组装）
+  assembleApparatus(index, components = { cylinder: true, water: true, sugar: true, yeast: true, stirred: true, balloon: true, rubberBand: true }) {
     const apparatus = this.apparatuses[index];
     if (!apparatus) return;
 
+    if (components.cylinder) apparatus.hasCylinder = true;
     if (components.water) apparatus.hasWater = true;
     if (components.sugar) apparatus.hasSugar = true;
     if (components.yeast) apparatus.hasYeast = true;
+    if (components.stirred) apparatus.hasStirred = true;
     if (components.balloon) apparatus.hasBalloon = true;
     if (components.rubberBand) apparatus.hasRubberBand = true;
 
@@ -214,7 +495,7 @@ export class Simulator {
           <div class="cylinder-bubbles" id="bubbles-${i}"></div>
         </div>
         <div class="apparatus-volume">${apparatus.getFormattedVolume()} ml</div>
-        <div class="apparatus-temp">${apparatus.temperature}°C</div>
+        <div class="apparatus-label">第${i + 1}组</div>
       `;
       
       apparatus.element = div;
@@ -337,15 +618,23 @@ export class Simulator {
     this.currentHours = 0;
     clearInterval(this.timerInterval);
     
+    // 重置组装状态
+    this.assemblyMode = false;
+    this.currentAssemblyIndex = 0;
+    this.currentAssemblyStep = 0;
+    this.expectedMaterial = null;
+    
     this.timerValue.textContent = '0小时';
     this.enableControlButtons({ start: false, pause: false, reset: false });
     
     // 重置装置
     this.apparatuses.forEach(apparatus => {
       apparatus.gasVolume = 0;
+      apparatus.hasCylinder = false;
       apparatus.hasWater = false;
       apparatus.hasSugar = false;
       apparatus.hasYeast = false;
+      apparatus.hasStirred = false;
       apparatus.hasBalloon = false;
       apparatus.hasRubberBand = false;
     });
@@ -355,11 +644,14 @@ export class Simulator {
     
     // 清空数据表格
     for (let i = 1; i <= config.ui.apparatusCount; i++) {
-      document.getElementById(`temp-${i}`).textContent = '-';
+      const tempCell = document.getElementById(`temp-${i}`);
+      if (tempCell) tempCell.textContent = '-';
       const input = document.getElementById(`volume-${i}`);
-      input.value = '';
-      input.disabled = true;
-      input.className = 'volume-input';
+      if (input) {
+        input.value = '';
+        input.disabled = true;
+        input.className = 'volume-input';
+      }
     }
   }
 
@@ -408,7 +700,7 @@ export class Simulator {
     } else {
       input.classList.remove('correct');
       input.classList.add('incorrect');
-      return { valid: false, correct: correctValue, message: `你填写的是${userValue}ml，再仔细看看装置${index + 1}上显示的数值哦` };
+      return { valid: false, correct: correctValue, message: `你填写的是${userValue}ml，再仔细看看第${index + 1}组上显示的数值哦` };
     }
   }
 }
