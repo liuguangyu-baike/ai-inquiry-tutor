@@ -199,25 +199,26 @@ export class AIChatManager {
     const parts = content.split(/\n---\n|\n-{3,}\n/);
     
     if (parts.length > 1) {
-      // 有多个部分，逐个显示
+      // 有多个部分，逐个显示（传入 skipHistory=true 避免重复添加历史）
       parts.forEach((part, index) => {
         const trimmedPart = part.trim();
         if (trimmedPart) {
           setTimeout(() => {
-            this._addSingleMessage(trimmedPart, index === 0 ? withImage : null);
+            this._addSingleMessage(trimmedPart, index === 0 ? withImage : null, true);
           }, index * 800); // 每条消息间隔800ms
         }
       });
-      // 添加完整内容到历史
+      // 只添加一次完整内容到历史
       this.messages.push({ role: 'assistant', content: content });
       return null;
     }
     
-    return this._addSingleMessage(content, withImage);
+    return this._addSingleMessage(content, withImage, false);
   }
   
   // 添加单条AI消息
-  _addSingleMessage(content, withImage = null) {
+  // skipHistory: 拆分模式下为true，避免重复添加到历史
+  _addSingleMessage(content, withImage = null, skipHistory = false) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'chat-message ai';
     
@@ -236,8 +237,8 @@ export class AIChatManager {
     this.messagesContainer.appendChild(msgDiv);
     this.scrollToBottom();
     
-    // 如果不是拆分模式，添加到历史
-    if (!this._isSplitting) {
+    // 添加到历史（拆分模式下跳过，由 addAIMessage 统一添加）
+    if (!skipHistory) {
       this.messages.push({ role: 'assistant', content: content });
     }
     
