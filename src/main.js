@@ -239,10 +239,20 @@ class App {
         if (lastMsg && !lastMsg.querySelector('img')) {
           const img = document.createElement('img');
           img.src = SCENE_IMAGE;
-          img.alt = '妈妈发面的场景';
+          img.alt = '发面的场景';
           img.style.marginTop = '12px';
           img.style.borderRadius = '8px';
           lastMsg.appendChild(img);
+        }
+        break;
+        
+      case 'setResearchQuestion':
+        // 显示研究问题标题
+        const questionContainer = document.getElementById('researchQuestion');
+        const questionText = document.getElementById('researchQuestionText');
+        if (questionContainer && questionText) {
+          questionText.textContent = cmd.question;
+          questionContainer.style.display = 'block';
         }
         break;
         

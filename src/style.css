@@ -49,6 +49,38 @@ body {
   grid-row: 1;
 }
 
+/* 研究问题标题 */
+.research-question {
+  margin-top: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.2), rgba(16, 185, 129, 0.1));
+  border-left: 4px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  animation: slideIn 0.5s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.question-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.question-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--secondary-color);
+}
+
 /* 左侧实验区域 */
 .main-container {
   grid-column: 1;
